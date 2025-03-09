@@ -26,7 +26,7 @@ Tipo_Contribución:
 * DOCS
 
 Módulo:
-Es el nombre del módulo en el que se trabaja.
+* Es el nombre del módulo en el que se trabaja.
 
 ## Haciendo Cambios
 
@@ -34,15 +34,14 @@ Los cambios deben ser "pequeños", y siempre deben estar relacionados a un issue
 
 En el proyecto se establecen tres (3) tipos de colaboraciones. 
 
-1. **In_Main**
-2. **Pull_Automatico**
-3. **Pull_Comment**
+1. **Ship**
+Aquellas cambios que no implican un riesgo en el código, que pueda afectar el sistema, generalmente cambios en elementos de documentación son denomonados *Ship* y pueden ser *mergeados* directamente a *main* sin la necesidad de que que se involucre terceras personas en el pull request (PR).
 
-Aquellas cambios que no implican un riesgo en el código, que pueda afectar el sistema, generalmente cambios en elementos de documentación son denomonados *In_Main* y pueden ser *mergeados* directamente a *main*.
+2. **Show**
+Aquellos cambios que involucran código de la aplicación, que tienen un riesgo muy bajo de que pueden afectar el sistema, se denominan *Show*. Éstos cambios deben ser enviados a un *pull request* y revisados antes de integrarlos a la rama *main*. Si bien el desarrollador está solicitando comentarios, nada impide cuando se puede realizar el *merge*.
 
-Aquellos cambios que involucran código de la aplicación, que tienen un riesgo muy bajo de que pueden afectar el sistema, se denominan *Pull_Automatico*. Éstos cambios deben ser enviados a un *pull request* antes de integrarlos a la rama *main*. El desarrollador que envía el *pull request* puede integrar el código sin intervención de terceros.
-
-Aquellos cambios que involucran código de la aplicación, y que pueden afectar la funcionalidad del sistema, se denominan *Pull_Comment*. Éstos cambios deben ser enviados a un *pull request* y antes de ser aplicados a la rama *main* deben ser discutodos y evaluados por los pares. El desarrollador que envía el *pull request* debe también asegurarse de iniciar la consulta sobre el código con los pares. También sera el encargado de realizar el *merge* del código a la rama *main*-
+3. **Ask**
+Aquellos cambios que involucran código de la aplicación, y que pueden afectar la funcionalidad del sistema, se denominan *Ask*. Éstos cambios deben ser enviados a un *pull request* y antes de ser aplicados a la rama *main* deben ser discutidos y evaluados por los pares. El desarrollador que envía el *pull request* debe también asegurarse de iniciar la consulta sobre el código con los pares. También sera el encargado de realizar el *merge* del código a la rama *main*-
  
 
 1. **Realiza Cambios**: Realiza los cambios necesarios en tu rama.

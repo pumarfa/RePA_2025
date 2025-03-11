@@ -8,4 +8,5 @@ python-dotenv
 python-jose
 python-jose[cryptography]
 psycopg2-binary
+bcrypt
 passlib[bcrypt]

@@ -4,7 +4,7 @@ from sqlalchemy.exc import SQLAlchemyError # PAra el debug de errores
 from fastapi.security import OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from src.auth.auth import create_access_token, verify_token, get_current_user # Se mueve la funcion 'get_current_user' a la libreria de 'auth'
-from src.auth.permissions import has_role
+from src.auth.permissions import has_role, has_user_role
 from src.models.user_model import User
 from src.schemas.user_schema import UserCreate, UserOut, UserUpdate
 from src.db.database import get_db
@@ -80,8 +80,12 @@ def update_user(user_update: UserUpdate, db: Session = Depends(get_db), current_
 # Obtener un usuario por id
 @user_router.get("/{user_id}", response_model=UserOut)
 def get_user(user_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # Los administradores pueden acceder a cualquier usuario
-    if has_user_role(user_id, '["admin"]') and current_user.id != user_id:
+    """
+    Retorna los datos de un usuario. 
+    Si el usuario posee al menos uno de los roles requeridos 'admin',
+    Si el usuario es el mismo propietario de los datos.
+    """
+    if not has_user_role(current_user, ['admin']):
         raise HTTPException(status_code=403, detail="No tienes permisos para acceder a este usuario")
     
     db_user = db.query(User).filter(User.id == current_user.id).first()

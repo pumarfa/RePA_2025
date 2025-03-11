@@ -36,9 +36,6 @@ erDiagram
 
 ---
 
-## Diccionario de Datos
-
-Claro, aquí tienes el diccionario de datos en formato Markdown para la estructura que proporcionaste:
 
 ## Diccionario de Datos
 

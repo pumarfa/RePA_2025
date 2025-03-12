@@ -65,14 +65,19 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     access_token = create_access_token(data={"sub": user.id})
     return {"access_token": access_token, "token_type": "bearer"}
 
+# Recuperar datos del usuario autenticado
+@user_router.get("/me", response_model=UserOut, description="Obtener los datos del usuario logueado")
+def get_me(current_user: User = Depends(get_current_user)):
+    """
+    Retorna datos del usuario autenticado.
+    """
+    return current_user
 
 # Actualizar usuario (por ejemplo, cambiar contraseña)
 @user_router.put("/me", response_model=UserOut, description="Actualizar los datos del usuario logueado")
 def update_user(user_update: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
-    Retorna current_user los datos del usuario logueado. 
-    Si el usuario posee al menos uno de los roles requeridos 'admin',
-    Si el usuario es el mismo propietario de los datos.
+    Actualizar los datos del usuario logueado
     """
     if user_update.email:
         current_user.email = user_update.email
@@ -97,7 +102,3 @@ def delete_user(user_update: UserUpdate, db: Session = Depends(get_db), current_
     db.refresh(current_user)
     return current_user
 
-# Ruta protegida de ejemplo
-@user_router.get("/me", response_model=UserOut)
-def get_me(current_user: User = Depends(get_current_user)):
-    return current_user

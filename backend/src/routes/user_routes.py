@@ -16,7 +16,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Actualizar último acceso... Esto se debe integrar a la ruta de logín del usuario.
 # @user_router.patch("/{email}/last-login", response_model=UserOut)
-def update_last_login(email: str, db: Session = Depends(get_db)):
+def update_last_login(email: str, db: Session = Depends(get_db), description="Actualiza en el registro de usuario, fecha y hora del login."):
     db_user = db.query(User).filter(User.email == email).first()
     if not db_user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
@@ -27,7 +27,7 @@ def update_last_login(email: str, db: Session = Depends(get_db)):
     #return db_user
 
 # Crear un usuario nuevo
-@user_router.post("/register", response_model=UserOut)
+@user_router.post("/register", response_model=UserOut, description="Crear un nuevo usuario")
 def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
     # Verificar si el usuario ya existe
     db_user = db.query(User).filter(User.email == user_in.email).first()
@@ -52,7 +52,7 @@ def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
 
 
 # Inicio de sesión [form_data: OAuth2PasswordRequestForm = Depends()]
-@user_router.post("/login")
+@user_router.post("/login", description="Iniciar sesión")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user or not pwd_context.verify(form_data.password, user.hashed_password):
@@ -67,8 +67,13 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
 
 # Actualizar usuario (por ejemplo, cambiar contraseña)
-@user_router.put("/me", response_model=UserOut)
+@user_router.put("/me", response_model=UserOut, description="Actualizar los datos del usuario logueado")
 def update_user(user_update: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    Retorna current_user los datos del usuario logueado. 
+    Si el usuario posee al menos uno de los roles requeridos 'admin',
+    Si el usuario es el mismo propietario de los datos.
+    """
     if user_update.email:
         current_user.email = user_update.email
     if user_update.password:
@@ -76,6 +81,17 @@ def update_user(user_update: UserUpdate, db: Session = Depends(get_db), current_
     db.commit()
     db.refresh(current_user)
     return current_user
+
+# Eliminar un usuario siempre el el email del current:user sea igual al del token
+@user_router.delete("/{user_id}", description="Eliminar un usuario, solo el propietario puede eliminar su cuenta. Set is_active=False")
+def delete_user(user_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db_user = db.query(User).filter(User.eid == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    db.delete(db_user)
+    db.commit()
+    return {"message": "Usuario eliminado correctamente"}
 
 # Obtener un usuario por id
 @user_router.get("/{user_id}", response_model=UserOut)
@@ -93,16 +109,6 @@ def get_user(user_id: str, db: Session = Depends(get_db), current_user: User = D
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return db_user
 
-# Eliminar un usuario siempre el el email del current:user sea igual al del token
-@user_router.delete("/{email}")
-def delete_user(email: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    db_user = db.query(User).filter(User.email == email).first()
-    if not db_user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-
-    db.delete(db_user)
-    db.commit()
-    return {"message": "Usuario eliminado correctamente"}
 
 # Listar todos los usuarios, solo para los administradores (ejemplo)
 @user_router.get("/", response_model=list[UserOut])

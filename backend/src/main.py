@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from src.routes.user_routes import user_router
+from src.routes.admin_routes import admin_router
 from src.routes.seed_routers import seed_router
 from src.db.database import Base, engine, init_db
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +24,8 @@ app.add_middleware(
 
 # Incluir rutas a módulos
 app.include_router(user_router, prefix="/users", tags=["Users"])
+app.include_router(admin_router, prefix="/admin", tags=["Admin"])
+
 
 # Datos iniciales
 app.include_router(seed_router, prefix="/seed", tags=["Seed Data"]) # Carga inicial de datos

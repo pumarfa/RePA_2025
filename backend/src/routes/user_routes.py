@@ -83,38 +83,19 @@ def update_user(user_update: UserUpdate, db: Session = Depends(get_db), current_
     return current_user
 
 # Eliminar un usuario siempre el el email del current:user sea igual al del token
-@user_router.delete("/{user_id}", description="Eliminar un usuario, solo el propietario puede eliminar su cuenta. Set is_active=False")
-def delete_user(user_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    db_user = db.query(User).filter(User.eid == user_id).first()
-    if not db_user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-
-    db.delete(db_user)
+@user_router.delete("/me", description="Eliminar un usuario, solo el propietario puede eliminar su cuenta. Set is_active=False")
+def delete_user(user_update: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    Cambiar estado de is_active True/False.
+    Se establece el campo is_active en False para borrar el usuario.
+    """
+    if user_update.is_active:
+        current_user.is_active = False
+    else:
+        current_user.is_active = True
     db.commit()
-    return {"message": "Usuario eliminado correctamente"}
-
-# Obtener un usuario por id
-@user_router.get("/{user_id}", response_model=UserOut)
-def get_user(user_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """
-    Retorna los datos de un usuario. 
-    Si el usuario posee al menos uno de los roles requeridos 'admin',
-    Si el usuario es el mismo propietario de los datos.
-    """
-    if not has_user_role(current_user, ['admin']):
-        raise HTTPException(status_code=403, detail="No tienes permisos para acceder a este usuario")
-    
-    db_user = db.query(User).filter(User.id == current_user.id).first()
-    if not db_user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    return db_user
-
-
-# Listar todos los usuarios, solo para los administradores (ejemplo)
-@user_router.get("/", response_model=list[UserOut])
-def list_users(db: Session = Depends(get_db), current_user: User = Depends(has_role(["admin"]))):
-    # Solo los administradores pueden ver la lista completa
-    return db.query(User).all()
+    db.refresh(current_user)
+    return current_user
 
 # Ruta protegida de ejemplo
 @user_router.get("/me", response_model=UserOut)

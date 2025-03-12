@@ -74,3 +74,21 @@ def delete_user(user_id: str, db: Session = Depends(get_db), current_user: User 
     db.commit()
     db.refresh(db_user)
     return db_user
+
+# Gestionar roles de un usuario
+@admin_router.post("/{user_id}/roles", description="Gestionar roles de un usuario")
+def manage_user_roles(user_id: str, roles: list[str], db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    Gestionar roles de un usuario.
+    """
+    if not has_user_role(current_user, ['admin']):
+        raise HTTPException(status_code=403, detail="No tienes permisos para acceder a este usuario")
+    
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    db_user.roles = roles
+    db.commit()
+    db.refresh(db_user)
+    return db_user

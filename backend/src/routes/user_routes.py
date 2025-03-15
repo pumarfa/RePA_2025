@@ -1,18 +1,47 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError # PAra el debug de errores
 from fastapi.security import OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from src.auth.auth import create_access_token, verify_token, get_current_user # Se mueve la funcion 'get_current_user' a la libreria de 'auth'
 from src.auth.permissions import has_role, has_user_role
-from src.models.user_model import User
+from src.models.user_model import User, Role
 from src.schemas.user_schema import UserCreate, UserOut, UserUpdate
 from src.db.database import get_db
 from datetime import datetime
+from uuid import uuid4
+import re
 
 user_router = APIRouter()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def get_password_hash(password: str):
+    return pwd_context.hash(password)
+
+def validar_password(password: str):
+    """
+    Valida que la contraseña cumpla con los requisitos:
+    - Mínimo 8 caracteres.
+    - Al menos una letra mayúscula.
+    - Al menos un número.
+    """
+    if len(password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La contraseña debe tener al menos 8 caracteres",
+        )
+    if not re.search(r"[A-Z]", password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La contraseña debe contener al menos una letra mayúscula",
+        )
+    if not re.search(r"\d", password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La contraseña debe contener al menos un número",
+        )
+
 
 # Actualizar último acceso... Esto se debe integrar a la ruta de logín del usuario.
 # @user_router.patch("/{email}/last-login", response_model=UserOut)
@@ -29,27 +58,50 @@ def update_last_login(email: str, db: Session = Depends(get_db), description="Ac
 # Crear un usuario nuevo
 @user_router.post("/register", response_model=UserOut, description="Crear un nuevo usuario")
 def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
+    """
+    Registrar un nuevo usuario con el rol "user" por defecto.
+    """
+     # Validar la contraseña
+    validar_password(user_in.password)
+
     # Verificar si el usuario ya existe
-    db_user = db.query(User).filter(User.email == user_in.email).first()
-    if db_user:
-        raise HTTPException(status_code=400, detail="El email ya está registrado")
+    existing_user = db.query(User).filter(User.email == user_in.email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El correo electrónico ya está registrado",
+        )
 
-    hashed_password = pwd_context.hash(user_in.password)
+    # Hashear la contraseña
+    hashed_password = get_password_hash(user_in.password)
 
+    # Crear el nuevo usuario
     new_user = User(
+        id=str(uuid4()),  # Generar un UUID único
         email=user_in.email,
-        hashed_password=hashed_password
+        hashed_password=hashed_password,
+        created_at=datetime.utcnow(),
     )
-    # Asignar roles si se especifica (se espera que los roles existan)
-    if user_in.roles:
-        roles = db.query(Role).filter(Role.id.in_(user_in.roles)).all()
-        new_user.roles = roles
 
+    # Asignar el rol "user" por defecto
+    user_role = db.query(Role).filter(Role.rol == "user").first()
+    if not user_role:
+        # Si el rol "user" no existe, crearlo
+        user_role = Role(rol="user")
+        db.add(user_role)
+        db.commit()
+        db.refresh(user_role)
+
+    # Asociar el rol al nuevo usuario
+    new_user.roles.append(user_role)
+
+    # Guardar el usuario en la base de datos
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    return new_user
 
+    # Devolver el usuario creado
+    return new_user
 
 # Inicio de sesión [form_data: OAuth2PasswordRequestForm = Depends()]
 @user_router.post("/login", description="Iniciar sesión")

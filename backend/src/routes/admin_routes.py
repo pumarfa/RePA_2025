@@ -35,6 +35,9 @@ def list_users(db: Session = Depends(get_db), current_user: User = Depends(has_r
     Listar todos los usuarios.
     """
     # Solo los administradores pueden ver la lista completa
+    if not has_user_role(current_user, ['admin']):
+        raise HTTPException(status_code=403, detail="No tienes permisos para acceder a este usuario")
+    
     return db.query(User).all()
 
 # Modificar un usuario por user_id, solo para administrador

@@ -1,97 +1,105 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError # PAra el debug de errores
 from fastapi.security import OAuth2PasswordRequestForm
 from passlib.context import CryptContext
-from src.auth.auth import create_access_token, verify_token, get_current_user # Se mueve la funcion 'get_current_user' a la libreria de 'auth'
-from src.auth.permissions import has_role, has_user_role
-from src.models.user_model import User
-from src.schemas.user_schema import UserCreate, UserOut, UserUpdate
-from src.db.database import get_db
-from datetime import datetime
+from typing import List
+from src.models.user_models import User, Role
+from src.schemas.user_schemas import UserOut, UserUpdate
+from src.database import get_db
+from src.utils import get_password_hash, validar_password,get_current_user,has_user_role
 
 admin_router = APIRouter()
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+@admin_router.get("/users", response_model=List[UserOut], description="Obtener todos los usuarios")
+def get_users(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """
+    Obtener todos los usuarios (Sólo para Administradores).
+    """
+    # Verificar si el usuario tiene el rol "admin"
+    if not has_user_role(current_user, ["admin"]):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos para realizar esta acción",
+        )
+    users = db.query(User).all()
+    return users
 
-# Obtener un usuario por user_id
-@admin_router.get("/{user_id}", response_model=UserOut, description="Obtener un usuario por user_id")
-def get_user(user_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@admin_router.get("{user_id}", response_model=UserOut, description="Obtener un usuario por ID")
+def get_user(user_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     """
-    Obtener un usuario por user_id.
+    Obtener un usuario por ID (Sólo para Administradores).
     """
-    if not has_user_role(current_user, ['admin']):
-        raise HTTPException(status_code=403, detail="No tienes permisos para acceder a este usuario")
+    # Verificar si el usuario tiene el rol "admin"
+    if not has_user_role(current_user, ["admin"]):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos para realizar esta acción",
+        )
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado",
+        )
+    return user
+
+@admin_router.put("{user_id}", response_model=UserUpdate, description="Modificar un nuevo usuario")
+def update_user(user_id: str, user_in: UserUpdate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """
+    Modificar un usuario por ID (Sólo para Administradores).
+    """
+    # Verificar si el usuario tiene el rol "admin"
+    if not has_user_role(current_user, ["admin"]):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos para realizar esta acción",
+        )
     
-    db_user = db.query(User).filter(User.id == current_user.id).first()
-    if not db_user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    return db_user
-
-# Listar todos los usuarios, solo para los administradores
-@admin_router.get("/users", response_model=list[UserOut], description="Listar todos los usuarios, solo para los administradores")
-def list_users(db: Session = Depends(get_db), current_user: User = Depends(has_role(["admin"]))):
-    """
-    Listar todos los usuarios.
-    """
-    # Solo los administradores pueden ver la lista completa
-    if not has_user_role(current_user, ['admin']):
-        raise HTTPException(status_code=403, detail="No tienes permisos para acceder a este usuario")
+    # Buscar el usuario en la base de datos
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Usuario no encontrado",
+        )
+    # print(f"Update_User Admin - Password: {user_in.password}") # Debug
+    # Actualizar los datos del usuario
+    if user_in.email:
+        user.email = user_in.email # Actualizar el correo electrónico si se proporciona y no hay duplicados
+    if user_in.password:
+        validar_password(user_in.password)
+        user.password = get_password_hash(user_in.password)
     
-    return db.query(User).all()
-
-# Modificar un usuario por user_id, solo para administrador
-@admin_router.put("/{user_id}", response_model=UserOut, description="Modificar un usuario por user_id, solo para administrador")
-def update_user(user_id: str, user_in: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """
-    Modificar un usuario por user_id.
-    """
-    if not has_user_role(current_user, ['admin']):
-        raise HTTPException(status_code=403, detail="No tienes permisos para acceder a este usuario")
-    
-    db_user = db.query(User).filter(User.id == user_id).first()
-    if not db_user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-
-    db_user.email = user_in.email
-    db_user.hashed_password = pwd_context.hash(user_in.password)
+    # Guardar los cambios
     db.commit()
-    db.refresh(db_user)
-    return db_user
-
-# Eliminar un usuario por user_id, solo para administrador
-@admin_router.delete("/{user_id}", description="Eliminar un usuario por user_id, solo para administrador. Set is_active=False")
-def delete_user(user_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """
-    Elimina un usuario por user_id.
-    Se establece el campo is_active en False.
-    """
-    if not has_user_role(current_user, ['admin']):
-        raise HTTPException(status_code=403, detail="No tienes permisos para acceder a este usuario")
+    db.refresh(user)
     
-    db_user = db.query(User).filter(User.id == user_id).first()
-    if not db_user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    # Devolver el usuario actualizado
+    return user
 
-    db_user.is_active = False
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
-# Gestionar roles de un usuario
-@admin_router.post("/{user_id}/roles", description="Gestionar roles de un usuario")
-def manage_user_roles(user_id: str, roles: list[str], db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+# Cambiar estado de is_active True/False
+@admin_router.delete("/{user_id}", description="Cambiar estado de 'is_active' del usuario 'user_id', solo para administrador.")
+def delete_user(user_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     """
-    Gestionar roles de un usuario.
+    Cambiar estado de is_active True/False.
     """
-    if not has_user_role(current_user, ['admin']):
-        raise HTTPException(status_code=403, detail="No tienes permisos para acceder a este usuario")
-    
-    db_user = db.query(User).filter(User.id == user_id).first()
-    if not db_user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-
-    db_user.roles = roles
+    # Verificar si el usuario tiene el rol "admin"
+    if not has_user_role(current_user, ["admin"]):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos para realizar esta acción",
+        )
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado",
+        )
+    if user.is_active:
+        user.is_active = False
+    else:
+        user.is_active = True
     db.commit()
-    db.refresh(db_user)
-    return db_user
+    db.refresh(user)
+    return user

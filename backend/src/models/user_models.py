@@ -1,7 +1,7 @@
 import uuid
 from sqlalchemy import Column, String, Boolean, DateTime, Integer, ForeignKey, Table
 from sqlalchemy.orm import relationship
-from src.db.database import Base
+from src.database import Base
 from datetime import datetime
 
 # Tabla asociativa para la relación muchos a muchos entre usuarios y roles
@@ -29,7 +29,3 @@ class User(Base):
     last_login = Column(DateTime, default=None, nullable=True)
     # Relación con roles a través de la tabla UserRole
     roles = relationship("Role", secondary="user_roles", backref="users")
-    #person = relationship("Person", back_populates="user", uselist=False) # Relación 1:1 con Person
-    #company = relationship("Company", back_populates="user", uselist=False) # Relación 1:N con Company
-    #trainings = relationship("Training", back_populates="user")  # Relación 1:N con Training
-    #audiovisual_works = relationship("AudiovisualWork", back_populates="user")  # Relación 1:N con AudiovisualWork

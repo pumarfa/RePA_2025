@@ -3,59 +3,18 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError # PAra el debug de errores
 from fastapi.security import OAuth2PasswordRequestForm
 from passlib.context import CryptContext
-from src.auth.auth import create_access_token, verify_token, get_current_user # Se mueve la funcion 'get_current_user' a la libreria de 'auth'
-from src.auth.permissions import has_role, has_user_role
-from src.models.user_model import User, Role
-from src.schemas.user_schema import UserCreate, UserOut, UserUpdate
-from src.db.database import get_db
-from datetime import datetime
+from src.models.user_models import User, Role
+from src.schemas.user_schemas import UserCreate, UserOut, UserUpdate
+from src.database import get_db
+from src.utils import get_password_hash, validar_password,update_last_login,create_access_token,create_refresh_token,get_current_user
+from datetime import datetime, timezone
 from uuid import uuid4
-import re
 
 user_router = APIRouter()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-def get_password_hash(password: str):
-    return pwd_context.hash(password)
-
-def validar_password(password: str):
-    """
-    Valida que la contraseña cumpla con los requisitos:
-    - Mínimo 8 caracteres.
-    - Al menos una letra mayúscula.
-    - Al menos un número.
-    """
-    if len(password) < 8:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="La contraseña debe tener al menos 8 caracteres",
-        )
-    if not re.search(r"[A-Z]", password):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="La contraseña debe contener al menos una letra mayúscula",
-        )
-    if not re.search(r"\d", password):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="La contraseña debe contener al menos un número",
-        )
-
-
-# Actualizar último acceso... Esto se debe integrar a la ruta de logín del usuario.
-# @user_router.patch("/{email}/last-login", response_model=UserOut)
-def update_last_login(email: str, db: Session = Depends(get_db), description="Actualiza en el registro de usuario, fecha y hora del login."):
-    db_user = db.query(User).filter(User.email == email).first()
-    if not db_user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-
-    db_user.last_login = datetime.utcnow()
-    db.commit()
-    db.refresh(db_user)
-    #return db_user
-
-# Crear un usuario nuevo
+# Crear un usuario nuevo# Crear un usuario nuevo
 @user_router.post("/register", response_model=UserOut, description="Crear un nuevo usuario")
 def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
     """
@@ -80,7 +39,7 @@ def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
         id=str(uuid4()),  # Generar un UUID único
         email=user_in.email,
         hashed_password=hashed_password,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
 
     # Asignar el rol "user" por defecto
@@ -104,53 +63,115 @@ def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
     return new_user
 
 # Inicio de sesión [form_data: OAuth2PasswordRequestForm = Depends()]
-@user_router.post("/login", description="Iniciar sesión")
+@user_router.post("/token")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    """
+    Iniciar sesión con un usuario registrado.
+    """
+    # Buscar el usuario en la base de datos
     user = db.query(User).filter(User.email == form_data.username).first()
-    if not user or not pwd_context.verify(form_data.password, user.hashed_password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas")
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Correo electrónico o contraseña incorrectos",
+        )
+    
+    # Verificar la contraseña
+    if not pwd_context.verify(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Correo electrónico o contraseña incorrectos",
+        )
+    
+    # Actualizar la fecha y hora del último acceso
+    update_last_login(user.email, db)
+    
+    # Convertir usuario a formato UserOut compatible con JSON
+    data_access = {
+        "id": user.id,
+        "email": user.email,
+        "is_active": user.is_active,
+        "created_at": user.created_at.isoformat(),
+        "last_login": user.last_login.isoformat() if user.last_login else None,
+        "roles": [{"id": role.id, "rol": role.rol} for role in user.roles],
+        "type": "access"
+    }
+    
+    data_refresh = {
+        "id": user.id,
+        "email": user.email,
+        "is_active": user.is_active,
+        "created_at": user.created_at.isoformat(),
+        "last_login": user.last_login.isoformat() if user.last_login else None,
+        "roles": [{"id": role.id, "rol": role.rol} for role in user.roles],
+        "type": "refresh"
+    }
 
-    # Actualizar el último login
-    user.last_login =  datetime.utcnow()
-    db.commit()
+    # Generar un token de acceso
+    access_token = create_access_token(data=data_access)
+    refresh_token = create_refresh_token(data=data_refresh)
 
-    access_token = create_access_token(data={"sub": user.id})
-    return {"access_token": access_token, "token_type": "bearer"}
-
-# Recuperar datos del usuario autenticado
-@user_router.get("/me", response_model=UserOut, description="Obtener los datos del usuario logueado")
-def get_me(current_user: User = Depends(get_current_user)):
+    return {
+        "access_token": access_token, 
+        "refresh_token": refresh_token, 
+        "token_type": "bearer"
+    }
+    
+@user_router.get("/me", response_model=UserOut, description="Obtener datos del usuario actual")
+def read_users_me(current_user: dict = Depends(get_current_user)):
     """
-    Retorna datos del usuario autenticado.
+    Obtener los datos del usuario actual.
     """
+    
     return current_user
 
-# Actualizar usuario (por ejemplo, cambiar contraseña)
-@user_router.put("/me", response_model=UserOut, description="Actualizar los datos del usuario logueado")
-def update_user(user_update: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+# Actualizar usuario
+@user_router.put("/me", response_model=UserUpdate, description="Actualizar los datos del usuario actual")
+def update_user(user_in: UserUpdate, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     """
-    Actualizar los datos del usuario logueado
+    Actualizar los datos del usuario actual.
     """
-    if user_update.email:
-        current_user.email = user_update.email
-    if user_update.password:
-        current_user.hashed_password = pwd_context.hash(user_update.password)
+    # Buscar el usuario en la base de datos
+    user = db.query(User).filter(User.id == current_user["id"]).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Usuario no encontrado",
+        )
+    
+    # Actualizar los datos del usuario
+    if user_in.email:
+        user.email = user_in.email # Actualizar el correo electrónico si se proporciona y no hay duplicados
+    if user_in.password:
+        validar_password(user_in.password)
+        user.hashed_password = get_password_hash(user_in.password)
+    
+    # Guardar los cambios
     db.commit()
-    db.refresh(current_user)
-    return current_user
+    db.refresh(user)
+    
+    # Devolver el usuario actualizado
+    return user
 
-# Eliminar un usuario siempre el el email del current:user sea igual al del token
-@user_router.delete("/me", description="Eliminar un usuario, solo el propietario puede eliminar su cuenta. Set is_active=False")
-def delete_user(user_update: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+# Eliminar usuario
+@user_router.delete("/me", description="Eliminar el usuario actual")
+def delete_user(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Cambiar estado de is_active True/False.
-    Se establece el campo is_active en False para borrar el usuario.
     """
-    if user_update.is_active:
-        current_user.is_active = False
+    # Buscar el usuario en la base de datos
+    user = db.query(User).filter(User.id == current_user["id"]).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Usuario no encontrado",
+        )
+    if user.is_active:
+        user.is_active = False
     else:
-        current_user.is_active = True
+        user.is_active = True
+    # Guardar los cambios
     db.commit()
-    db.refresh(current_user)
-    return current_user
-
+    db.refresh(user)
+    #return {"message": "Usuario eliminado"}
+    return user

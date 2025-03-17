@@ -4,8 +4,8 @@ from sqlalchemy.exc import SQLAlchemyError # PAra el debug de errores
 from fastapi.security import OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from typing import List
-from src.models.user_models import User, Role
-from src.schemas.user_schemas import UserOut, UserUpdate
+from src.models.user_models import User, Role, UserRole
+from src.schemas.user_schemas import UserOut, UserUpdate, RoleOut
 from src.database import get_db
 from src.utils import get_password_hash, validar_password,get_current_user,has_user_role
 
@@ -44,10 +44,10 @@ def get_user(user_id: str, db: Session = Depends(get_db), current_user: dict = D
         )
     return user
 
-@admin_router.put("{user_id}", response_model=UserUpdate, description="Modificar un nuevo usuario")
-def update_user(user_id: str, user_in: UserUpdate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+@admin_router.put("{user_id}", response_model=UserOut, description="Modificar los datos de un usuario")
+def update_user(user_id: str, user_in: UserOut, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     """
-    Modificar un usuario por ID (Sólo para Administradores).
+    Modificar los datos de un usuario por ID (Sólo para Administradores).
     """
     # Verificar si el usuario tiene el rol "admin"
     if not has_user_role(current_user, ["admin"]):

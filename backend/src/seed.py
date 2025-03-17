@@ -1,5 +1,5 @@
-from src.db.database import init_db, SessionLocal
-from src.models.user_model import Role
+from src.database import init_db, SessionLocal
+from src.models.user_models import Role
 from sqlalchemy.exc import IntegrityError
 
 def seed_data():

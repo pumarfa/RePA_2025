@@ -1,35 +1,40 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from src.database import init_db
+
 from src.routes.user_routes import user_router
 from src.routes.admin_routes import admin_router
-from src.routes.seed_routers import seed_router
-from src.db.database import Base, engine, init_db
-from fastapi.middleware.cors import CORSMiddleware
+from src.seed import seed_data
 
 # Inicializar la base de datos
 init_db()
 
 app = FastAPI()
-app.title = "RePA IAViM - 2025"
-app.version = "0.1.0"
+app.title = "Backend Frame - 2025"
+app.version = "0.0.1"
 
 origin = ['*'] # URL permitidas para consumir la API
 
+# Configuración de CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origin,
     allow_credentials=True,
-    allow_methods=['*'],
-    allow_headers=['*']
-    )
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Inicializar la base de datos y ejecutar seeding
+@app.on_event("startup")
+def on_startup():
+    init_db()  # Crear tablas si no existen
+    seed_data()  # Ejecutar seeding
 
 # Incluir rutas a módulos
 app.include_router(user_router, prefix="/users", tags=["Users"])
-app.include_router(admin_router, prefix="/admin", tags=["Admin"])
-
-
-# Datos iniciales
-app.include_router(seed_router, prefix="/seed", tags=["Seed Data"]) # Carga inicial de datos
+app.include_router(admin_router, prefix="/admin", tags=["Administrator"])
 
 @app.get("/")
 def root():
-    return {"message": "API de Gestión de Usuarios funcionando correctamente"}
+    return {"message": "FastAPI funcionando correctamente..."}

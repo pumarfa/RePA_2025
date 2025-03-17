@@ -1,12 +1,10 @@
 fastapi
 uvicorn
-sqlalchemy
-pydantic
+sqlalchemy # ORM de BAse de datos
+psycopg2-binary # Librería de PostgrSQL
+pydantic # Librería para validación de datos
 pydantic[email]
-python-multipart
-python-dotenv
-python-jose
-python-jose[cryptography]
-psycopg2-binary
-bcrypt
-passlib[bcrypt]
+python-multipart # Librería para subir archivos
+python-jose[cryptography] # Librería para JWT
+passlib[bcrypt] # Librería para encriptar contraseñas
+python-dotenv # Librería para manejar variables de entorno

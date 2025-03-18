@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.logsapp import LoggingMiddleware
 from src.database import init_db
 
 from src.routes.user_routes import user_router
@@ -15,6 +16,9 @@ app.title = "Backend Frame - 2025"
 app.version = "0.0.1"
 
 origin = ['*'] # URL permitidas para consumir la API
+
+# Agregar el middleware a la aplicación
+app.middleware("http")(LoggingMiddleware(app))
 
 # Configuración de CORS
 app.add_middleware(

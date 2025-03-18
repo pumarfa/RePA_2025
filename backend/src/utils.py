@@ -1,7 +1,8 @@
 from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from fastapi import Depends, HTTPException, status 
+from pathlib import Path
+from fastapi import Depends, HTTPException, Request, status 
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
@@ -23,12 +24,38 @@ SECRET_KEY = os.getenv("SECRET_KEY") # Cambia esto a un valor seguro
 ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE = 30 #os.getenv(ACCESS_TOKEN_EXPIRE_MINUTES)
 REFRESH_TOKEN_EXPIRE = 7 #os.getenv(REFRESH_TOKEN_EXPIRE_DAYS)
+LOGS_PATH = os.getenv("LOGS_PATH")
 
 # Objeto necesario para la función de 'get_current_user' que valida los datos del usuario
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/token")
 
 # Configuración de passlib
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Función para registrar la actividad de los usuarios
+async def log_actividad(user_id: str, endpoint: str, metodo: str):
+    log_dir = "/logs"
+    log_file = "activity.log"
+    log_path = os.path.join(log_dir, log_file)
+    
+    # Crear directorio si no existe
+    Path(log_dir).mkdir(parents=True, exist_ok=True)
+
+    log_entry = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "user_id": user_id,
+        "endpoint": endpoint,
+        "metodo": metodo
+    }
+    params = dict(request.query_params)
+    log_entry["params"] = params  # Para GET
+    log_entry["body"] = await request.json() 
+
+    try:
+        with open(log_path, "a", encoding="utf-8") as log_file:
+            log_file.write(f"{log_entry}\n")
+    except Exception as e:
+        print(f"Error escribiendo log: {str(e)}")
 
 # Hashear la contraseña
 def get_password_hash(password: str):
@@ -84,10 +111,11 @@ def decode_access_token(token: str):
         )
 
 # Validar el usuario
-def get_current_user(token: str = Depends(oauth2_scheme)):
+async def get_current_user(request: Request, token: str = Depends(oauth2_scheme)):
     """
     Valida el token de acceso y retorna los datos del usuario.
     """
+    
     payload = decode_access_token(token)
     user_data = {
         "id": payload.get("id"),
@@ -98,6 +126,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         "roles": payload.get("roles"),
         "type": payload.get("type")
     }
+
     return user_data
 
 # Generar un token de acceso

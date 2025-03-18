@@ -15,11 +15,13 @@ class RoleOut(RoleBase):
 # Esquemas de usuario
 class UserBase(BaseModel):
     email: EmailStr
-    
+
+# Esquema para creación de usuario
 class UserCreate(UserBase):
     password: str  # Contraseña en texto plano (se hasheará en el backend)
     roles: Optional[List[int]] = []  # Lista de IDs de roles asignados
 
+# Esquema para salida de usuario
 class UserOut(UserBase):
     id: str
     is_active: bool
@@ -34,7 +36,12 @@ class UserOut(UserBase):
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     password: Optional[str] = None  # Nueva contraseña (se hasheará)
-    
+
+# Esquema para actualizar roles de usuario
+class UserRolePatch(BaseModel):
+    add: List[int] = []
+    remove: List[int] = []
+        
 class Token(BaseModel):
     access_token: str
     token_type: str

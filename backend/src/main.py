@@ -1,7 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.logsapp import LoggingMiddleware
+from src.logger import logger
+from src.middlewarelogg import log_requests
+from starlette.middleware.base import BaseHTTPMiddleware # Importar BaseHTTPMiddleware para el middleware de logs
+
 from src.database import init_db
 
 from src.routes.user_routes import user_router
@@ -14,11 +17,11 @@ init_db()
 app = FastAPI()
 app.title = "Backend Frame - 2025"
 app.version = "0.0.1"
+app.add_middleware(BaseHTTPMiddleware, dispatch=log_requests)
+
+logger.info("FastAPI iniciado correctamente...")
 
 origin = ['*'] # URL permitidas para consumir la API
-
-# Agregar el middleware a la aplicación
-app.middleware("http")(LoggingMiddleware(app))
 
 # Configuración de CORS
 app.add_middleware(
@@ -41,4 +44,5 @@ app.include_router(admin_router, prefix="/admin", tags=["Administrator"])
 
 @app.get("/")
 def root():
+    logger.info("ROOT - FastAPI funcionando correctamente...")
     return {"message": "FastAPI funcionando correctamente..."}

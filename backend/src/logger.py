@@ -1,6 +1,7 @@
 import os
 import logging
 from dotenv import load_dotenv
+from logging.handlers import TimedRotatingFileHandler
 
 token = 'oX6sAtRF63a5CY9XUqySWPVw'
 
@@ -15,6 +16,16 @@ os.makedirs(log_directory, exist_ok=True)
 
 # Configurar el archivo de log
 log_file_path = os.path.join(log_directory, "app.log")
+
+# Configurar handler rotativo
+file_handler = TimedRotatingFileHandler(
+    filename=log_file_path,
+    when="midnight",    # Rotación diaria a medianoche
+    interval=1,         # Intervalo diario (valor por defecto)
+    backupCount=5,      # Mantener 5 archivos de backup
+    encoding="utf-8",   # Codificación explícita
+    delay=False         # Crear archivo inmediatamente
+)
 
 # Configurar el formato del log
 log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

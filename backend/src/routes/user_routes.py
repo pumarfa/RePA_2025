@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError # PAra el debug de errores
 from fastapi.security import OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from src.models.user_models import User, Role

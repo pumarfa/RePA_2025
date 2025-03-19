@@ -1,19 +1,13 @@
 from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone
-from typing import Optional
-from pathlib import Path
 from fastapi import Depends, HTTPException, Request, status 
 from sqlalchemy.orm import Session
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 from src.models.user_models import User
 from src.schemas.user_schemas import Token, UserUpdate
 from src.database import get_db
-
-# Librerias necesarias para la función get_current_user de validacion del usuario
-from src.database import get_db
-
-# Configuración de JWT
+from src.logger import logger
 from dotenv import load_dotenv
 import os
 import re
@@ -24,38 +18,13 @@ SECRET_KEY = os.getenv("SECRET_KEY") # Cambia esto a un valor seguro
 ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE = 30 #os.getenv(ACCESS_TOKEN_EXPIRE_MINUTES)
 REFRESH_TOKEN_EXPIRE = 7 #os.getenv(REFRESH_TOKEN_EXPIRE_DAYS)
-LOGS_PATH = os.getenv("LOGS_PATH")
+
 
 # Objeto necesario para la función de 'get_current_user' que valida los datos del usuario
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/token")
 
 # Configuración de passlib
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-# Función para registrar la actividad de los usuarios
-async def log_actividad(user_id: str, endpoint: str, metodo: str):
-    log_dir = "/logs"
-    log_file = "activity.log"
-    log_path = os.path.join(log_dir, log_file)
-    
-    # Crear directorio si no existe
-    Path(log_dir).mkdir(parents=True, exist_ok=True)
-
-    log_entry = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "user_id": user_id,
-        "endpoint": endpoint,
-        "metodo": metodo
-    }
-    params = dict(request.query_params)
-    log_entry["params"] = params  # Para GET
-    log_entry["body"] = await request.json() 
-
-    try:
-        with open(log_path, "a", encoding="utf-8") as log_file:
-            log_file.write(f"{log_entry}\n")
-    except Exception as e:
-        print(f"Error escribiendo log: {str(e)}")
 
 # Hashear la contraseña
 def get_password_hash(password: str):
@@ -95,7 +64,7 @@ def decode_access_token(token: str):
     """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        print(f"Decode_Access_Token:Payload decodificado: {payload}") # Debug
+        #print(f"Decode_Access_Token:Payload decodificado: {payload}") # Debug
         return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(
@@ -103,7 +72,7 @@ def decode_access_token(token: str):
             detail="Token expirado",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except jwt.InvalidTokenError:
+    except jwt.JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido",

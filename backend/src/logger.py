@@ -3,12 +3,9 @@ import logging
 from dotenv import load_dotenv
 from logging.handlers import TimedRotatingFileHandler
 
-token = 'oX6sAtRF63a5CY9XUqySWPVw'
-
 load_dotenv()
 
 LOGS_PATH = os.getenv("LOGS_PATH")
-BETTER_STACKTRACE = os.getenv("BETTER_STACKTRACE")
 
 # Crear el directorio de logs si no existe
 log_directory = "src/logs" # reemplazar por LOGS_PATH

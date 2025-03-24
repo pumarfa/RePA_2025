@@ -4,7 +4,17 @@ from sqlalchemy.orm import relationship
 from src.database import Base
 from datetime import datetime
 
-# Tabla asociativa para la relación muchos a muchos entre usuarios y roles
+# Modelo para Token de Verificación de Correo
+class TokenRecovery(Base):
+    __tablename__="token_recovery"
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, index=True, nullable=False)
+    token_payload = Column(String, unique=True, index=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=True)
+    is_active = Column(Boolean, default=True)
+    
+# Modelo asociativa para la relación muchos a muchos entre usuarios y roles
 class UserRole(Base):
     __tablename__ = "user_roles"
     id = Column(Integer, primary_key=True, index=True)

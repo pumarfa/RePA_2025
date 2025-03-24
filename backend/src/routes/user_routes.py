@@ -2,11 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
 from passlib.context import CryptContext
+from jose import JWTError, jwt
 from src.models.user_models import User, Role, TokenRecovery
 from src.schemas.user_schemas import UserCreate, UserOut, UserUpdate, TokenData, TokenDB
 from src.database import get_db
 from src.utils import get_password_hash,validar_password,update_last_login,get_current_user
-from src.token_utils import create_access_token,create_refresh_token
+from src.token_utils import create_access_token, decode_access_token
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 from dotenv import load_dotenv
@@ -99,7 +100,7 @@ def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
             detail="Error en el registro de New User"
         )
     # Envío de email (ejemplo simplificado) Agregar la variable de entrono de URL_SITE
-    verification_url = f"{URL_SITE}/user/confirm/{registration_token}"
+    verification_url = f"{URL_SITE}/users/confirm/{registration_token}"
     print(f"URL de verificación: {verification_url}")  # En producción usar servicio de email
     
     return new_user # Retorna el usuario creado{"detail": "Registro exitoso. Verifica tu email"}
@@ -120,8 +121,9 @@ async def confirm_registration(token: str, db: Session = Depends(get_db)):
     try:
 
         # Verificar token
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        
+        payload = decode_access_token(token)
+        #print(f"Token Confirm Input: {payload}") # Debug
+
         # Validaciones críticas
         if payload.get("type") != "access" or "unverified" not in payload.get("roles", []):
             raise HTTPException(status_code=400, detail="Token inválido")
@@ -200,7 +202,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     )
     # refresh_token = create_refresh_token(data=data_refresh)
     refresh_token = create_access_token(
-        data={"sub": user.id, "email": user.email, "roles": [{"id": role.id, "rol": role.rol} for role in user.roles]},
+        data={"sub": user.id, "email": user.email, "roles": [{"id": role.id, "rol": role.rol} for role in user.roles], "type": "refresh"},
         expires_delta=(60*24*7)  # 7 dias, en minutos
     )
 
@@ -215,8 +217,14 @@ async def read_users_me(current_user: dict = Depends(get_current_user)):
     """
     Obtener los datos del usuario actual.
     """
-    
-    return current_user
+    # Buscar el usuario en la base de datos
+    user = db.query(User).filter(User.email == current_user["sub"]).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Correo electrónico o contraseña incorrectos",
+        )
+    return user
 
 # Actualizar usuario
 @user_router.put("/me", response_model=UserUpdate, description="Actualizar los datos del usuario actual")
@@ -225,7 +233,7 @@ async def update_user(user_in: UserUpdate, current_user: dict = Depends(get_curr
     Actualizar los datos del usuario actual.
     """
     # Buscar el usuario en la base de datos
-    user = db.query(User).filter(User.id == current_user["id"]).first()
+    user = db.query(User).filter(User.id == current_user["sub"]).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

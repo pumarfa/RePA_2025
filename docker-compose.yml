@@ -26,6 +26,9 @@ services:
       - type: bind
         source: ./backend/src
         target: /code/src
+      - ~/.local/share/zed/languages/pylsp/pylsp-venv:/opt/pylsp # Montar entorno virtual
+    environment:
+      PYTHONPATH: "/opt/pylsp/lib/python3.9/site-packages" # Ajustar según versión
     ports:
       - "8000:80"
 

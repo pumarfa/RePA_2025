@@ -19,7 +19,7 @@ class UserBase(BaseModel):
 # Esquema para creación de usuario
 class UserCreate(UserBase):
     password: str  # Contraseña en texto plano (se hasheará en el backend)
-    roles: Optional[List[int]] = []  # Lista de IDs de roles asignados
+    roles: Optional[List[int]] = [2]  # Lista de IDs de roles asignados
 
 # Esquema para salida de usuario
 class UserOut(UserBase):
@@ -41,7 +41,15 @@ class UserUpdate(BaseModel):
 class UserRolePatch(BaseModel):
     add: List[int] = []
     remove: List[int] = []
-        
-class Token(BaseModel):
-    access_token: str
-    token_type: str
+
+# Esquema para Recuperacion de Usuario
+class TokenData(BaseModel):
+    user_id: str
+    token_data: str = None
+
+# Esquema para Base de datos de TokenRecovery
+class TokenDB(TokenData):
+    id: str
+    created_at:datetime
+    expires_at: Optional[datetime] = None
+    is_active: bool

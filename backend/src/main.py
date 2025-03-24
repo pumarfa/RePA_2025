@@ -15,7 +15,7 @@ from src.seed import seed_data
 init_db()
 
 app = FastAPI()
-app.title = "Backend Frame - 2025"
+app.title = "Backend RePA - 2025"
 app.version = "0.0.1"
 app.add_middleware(BaseHTTPMiddleware, dispatch=log_requests)
 

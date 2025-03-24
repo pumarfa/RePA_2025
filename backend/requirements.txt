@@ -6,5 +6,6 @@ pydantic # Librería para validación de datos
 pydantic[email]
 python-multipart # Librería para subir archivos
 python-jose[cryptography] # Librería para JWT
-passlib[bcrypt] # Librería para encriptar contraseñas
+passlib[bcrypt]==1.7.4
+bcrypt==3.2.0 # Librería para encriptar contraseñas
 python-dotenv # Librería para manejar variables de entorno

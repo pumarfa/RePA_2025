@@ -11,7 +11,7 @@ from src.utils import get_password_hash, validar_password,get_current_user,has_u
 
 admin_router = APIRouter()
 
-@admin_router.get("/users", response_model=List[UserOut], description="Obtener todos los usuarios")
+@admin_router.post("/users", response_model=List[UserOut], description="Obtener todos los usuarios")
 def get_users(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     """
     Obtener todos los usuarios (Sólo para Administradores).

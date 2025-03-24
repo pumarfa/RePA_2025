@@ -42,12 +42,12 @@ async def get_current_user(request: Request, token: str = Depends(oauth2_scheme)
     """
 
     payload = decode_access_token(token)
+    print(f"payload: {payload}")  # Debug
+    # payload: {'sub': '9d6f7d0c-a325-4791-9d61-b58174a8d871', 'email': 'user@example.com', 'roles': [{'id': 1, 'rol': 'admin'}, {'id': 2, 'rol': 'user'}], 'exp': 1742905576, 'type': 'access'}
+
     user_data = {
-        "id": payload.get("id"),
+        "id": payload.get("sub"),
         "email": payload.get("email"),
-        "is_active": payload.get("is_active"),
-        "created_at": payload.get("created_at"),
-        "last_login": payload.get("last_login"),
         "roles": payload.get("roles"),
         "type": payload.get("type")
     }
@@ -89,10 +89,8 @@ def has_user_role(current_user: dict, required_roles: list[str]) -> bool:
     Returns:
         bool: True si tiene al menos un rol requerido, False en caso contrario
     """
-
-    if not current_user.get("is_active", False):
-        return False
-
+    #print(f"current_user: {current_user}")  # Debug
+    
     # Extraer los roles del usuario en minúsculas
     user_roles = [role["rol"].lower() for role in current_user.get("roles", [])]
 

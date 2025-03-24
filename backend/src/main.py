@@ -16,7 +16,7 @@ init_db()
 
 app = FastAPI()
 app.title = "Backend RePA - 2025"
-app.version = "0.0.1"
+app.version = "0.1.0"
 app.add_middleware(BaseHTTPMiddleware, dispatch=log_requests)
 
 logger.info("FastAPI iniciado correctamente...")

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, Table
+from sqlalchemy import Column, String, Date, Integer, ForeignKey, Table
 from sqlalchemy.orm import relationship
 from src.database import Base
 
@@ -9,8 +9,8 @@ class Training(Base):
     institucion = Column(String, nullable=False)
     tipo_certificado = Column(String, nullable=False)
     nivel_estudio = Column(String, nullable=False)
-    fecha_inicio = Column(DateTime, nullable=False)
-    fecha_finalizacion = Column(DateTime, nullable=False)
+    fecha_inicio = Column(Date)
+    fecha_finalizacion = Column(Date)
     horas_duracion = Column(Integer, nullable=False)
     enlace_certificado = Column(String)
     area_conocimiento = Column(String, nullable=False)

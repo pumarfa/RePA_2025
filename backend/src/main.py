@@ -9,6 +9,9 @@ from src.database import init_db
 
 from src.routes.user_routes import user_router
 from src.routes.admin_routes import admin_router
+from src.routes.training_routes import training_router
+from src.routes.admin_training_rutes import admin_training
+
 from src.seed import seed_data
 
 # Inicializar la base de datos
@@ -40,7 +43,11 @@ def on_startup():
 
 # Incluir rutas a módulos
 app.include_router(user_router, prefix="/users", tags=["Users"])
-app.include_router(admin_router, prefix="/admin", tags=["Administrator"])
+app.include_router(training_router, prefix="/training", tags=["Training"])
+
+# Rutas de Administración
+app.include_router(admin_router, prefix="/admin_user", tags=["Administrator User"])
+app.include_router(admin_training, prefix="/admin_training", tags=["Administrator Training"])
 
 @app.get("/")
 def root():

@@ -4,15 +4,18 @@ from sqlalchemy.exc import SQLAlchemyError # PAra el debug de errores
 from fastapi.security import OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from typing import List
+
 from src.models.user_models import User, Role, UserRole
 from src.schemas.user_schemas import UserOut, UserUpdate, RoleOut
+
 from src.database import get_db
 from src.utils import get_password_hash, validar_password,get_current_user,has_user_role
 
 admin_router = APIRouter()
 
-@admin_router.post("/users", response_model=List[UserOut], description="Obtener todos los usuarios")
-def get_users(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+@admin_router.get("/users", response_model=List[UserOut], description="Obtener todos los usuarios")
+async def get_users(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+
     """
     Obtener todos los usuarios (Sólo para Administradores).
     """
@@ -26,7 +29,7 @@ def get_users(db: Session = Depends(get_db), current_user: dict = Depends(get_cu
     return users
 
 @admin_router.get("/{user_id}", response_model=UserOut, description="Obtener un usuario por ID")
-def get_user(user_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def get_user(user_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     """
     Obtener un usuario por ID (Sólo para Administradores).
     """
@@ -45,7 +48,7 @@ def get_user(user_id: str, db: Session = Depends(get_db), current_user: dict = D
     return user
 
 @admin_router.put("/{user_id}", response_model=UserOut, description="Modificar los datos de un usuario")
-def update_user(user_id: str, user_in: UserUpdate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def update_user(user_id: str, user_in: UserUpdate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     """
     Modificar los datos de un usuario por ID (Sólo para Administradores).
     """
@@ -81,7 +84,7 @@ def update_user(user_id: str, user_in: UserUpdate, db: Session = Depends(get_db)
     return user
 
 @admin_router.put("/{user_id}/roles", response_model=UserOut, description="Modificar los roles de un usuario")
-def update_user_roles(user_id: str, roles: List[int], db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def update_user_roles(user_id: str, roles: List[int], db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     """
     Modificar los roles de un usuario por ID (Sólo para Administradores).
     """
@@ -120,7 +123,7 @@ def update_user_roles(user_id: str, roles: List[int], db: Session = Depends(get_
 
 # Cambiar estado de is_active True/False
 @admin_router.delete("/{user_id}", description="Cambiar estado de 'is_active' del usuario 'user_id', solo para administrador.")
-def delete_user(user_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def delete_user(user_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     """
     Cambiar estado de is_active True/False.
     """

@@ -42,16 +42,15 @@ async def get_current_user(request: Request, token: str = Depends(oauth2_scheme)
     """
 
     payload = decode_access_token(token)
-    print(f"payload: {payload}")  # Debug
-    # payload: {'sub': '9d6f7d0c-a325-4791-9d61-b58174a8d871', 'email': 'user@example.com', 'roles': [{'id': 1, 'rol': 'admin'}, {'id': 2, 'rol': 'user'}], 'exp': 1742905576, 'type': 'access'}
-
+    print(f"Utils - get_current_user - payload: {payload}")  # Debug
+    
     user_data = {
         "id": payload.get("sub"),
         "email": payload.get("email"),
         "roles": payload.get("roles"),
         "type": payload.get("type")
     }
-
+    print(f"Utils - get_current_user - user_data: {user_data}")  # Debug
     return user_data
 
 def validar_password(password: str):
@@ -89,16 +88,20 @@ def has_user_role(current_user: dict, required_roles: list[str]) -> bool:
     Returns:
         bool: True si tiene al menos un rol requerido, False en caso contrario
     """
-    #print(f"current_user: {current_user}")  # Debug
+    print(f"Utils - has_user_role - current_user: {current_user}")  # Debug
     
-    # Extraer los roles del usuario en minúsculas
-    user_roles = [role["rol"].lower() for role in current_user.get("roles", [])]
-
-    # Convertir roles requeridos a minúsculas para comparación case-insensitive
-    required_roles_lower = [r.lower() for r in required_roles]
-
-    # Verificar coincidencias
-    return any(role in required_roles_lower for role in user_roles)
+    # Extraer los nombres de los roles del usuario en minúsculas
+    user_roles = {role["rol"].lower() for role in current_user.get("roles", [])}
+    print(f"Utils - has_user_role - user_roles: {user_roles}")  # Debug
+    # Convertir los roles requeridos a minúsculas para comparación insensible a mayúsculas/minúsculas
+    required_roles_lower = {role.lower() for role in required_roles}
+    print(f"Utils - has_user_role - required_roles_lower: {required_roles_lower}")  # Debug
+    
+    hsa_role = user_roles.isdisjoint(required_roles_lower)
+    print(f"Utils - has_user_role - hsa_role: {hsa_role}")  # Debug
+    
+    # Verificar si hay intersección entre los roles del usuario y los roles requeridos
+    return not user_roles.isdisjoint(required_roles_lower)
 
 # Verifica que el nuevo email no esté siendo usado por otro usuario
 def verify_email_unique(db: Session, user_in: UserUpdate, current_user: dict):

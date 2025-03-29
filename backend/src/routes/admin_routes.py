@@ -15,6 +15,7 @@ admin_router = APIRouter()
 
 @admin_router.get("/users", response_model=List[UserOut], description="Obtener todos los usuarios")
 async def get_users(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+
     """
     Obtener todos los usuarios (Sólo para Administradores).
     """

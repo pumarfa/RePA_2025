@@ -211,7 +211,86 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         "refresh_token": refresh_token, 
         "token_type": "bearer"
     }
+
+# Generar el Token de Recover Password
+@user_router.put("/recovery_passwd", response_model=UserUpdate, description="Generar el Token de Recover Password")
+async def recovery_passwd_user(user_in: UserUpdate, db: Session = Depends(get_db)):
+    """
+    Generar el Token de Recover Password.
+    Generar una password aleatoria y enviarla al correo del usuario.
+    Args:
+        email (string): Email del usuario
+        passwd (string): Password Nuevo del usuario
+    Returns:
+        dict: Token de acceso y refresh token
+        URL: dirección de recovery password
+    """
+    user= db.query(User).filter(User.email == user_in.email).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Usuario no existe")
+    validar_password(user_in.password)
+    hashed_password = get_password_hash(user_in.password)
+    # Generar token de registro (24h de validez)
+    registration_token = create_access_token(
+        data={"sub": user.id, "new_password": hashed_password},
+        expires_delta=1440  # 24 horas en minutos
+    )
     
+    # Guardar token de recuperación
+    recovery_record = TokenRecovery(
+        user_id=user.id,
+        token_payload=registration_token,
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=1440),
+    )
+    
+    # Guardar el nuevo usuario y el token de recuperación en la base de datos
+    try:
+        db.add(recovery_record)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Error en el registro de Token Recovery"
+        )
+    # Envío de email (ejemplo simplificado) Agregar la variable de entrono de URL_SITE
+    verification_url = f"{URL_SITE}/users/recovery/{registration_token}"
+    print(f"URL de verificación: {verification_url}")  # En producción usar servicio de email
+    
+    return user # Retorna el usuario 
+
+# Recuperar la contraseña del usuario
+@user_router.get("/recovery/{token}", response_model=UserOut, description="Recuperar la contraseña del usuario")
+async def recovery_passwd(token: str, db: Session = Depends(get_db)):
+    """
+    Recuperar la contraseña del usuario.
+    Args:
+        token (string): Token de recuperación
+    """
+    # Verificar token
+    payload = decode_access_token(token)
+    print(f"payload: {payload}") # Debug
+    user_id = payload.get("sub")
+    # Buscar el usuario en la base de datos
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Usuario no existe")
+    # Actualizar la contraseña del usuario
+    user.hashed_password = payload.get("new_password")
+    print(f"Token_password:{payload.get('new_password')}")
+    db.commit()
+    db.refresh(user)
+    # Eliminar el token de recuperación
+    db.query(TokenRecovery).filter(TokenRecovery.user_id == user_id).delete()
+    db.commit() 
+
+    return user
+
+# Obtener los datos del usuario actual
 @user_router.get("/me", response_model=UserOut, description="Obtener datos del usuario actual")
 async def read_users_me(current_user: dict = Depends(get_current_user)):
     """

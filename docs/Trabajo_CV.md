@@ -72,7 +72,7 @@ trabajos_tareas = Table('trabajos_tareas', Base.metadata,
 )
 
 class Usuario(Base):
-    __tablename__ = 'usuarios'
+    __tablename__ = 'user'
 
     id = Column(Integer, primary_key=True)
     ...
@@ -82,7 +82,7 @@ class Trabajo(Base):
     __tablename__ = 'trabajos'
 
     id = Column(Integer, primary_key=True)
-    usuario_id = Column(Integer, ForeignKey('usuarios.id'), nullable=False)
+    usuario_id = Column(Integer, ForeignKey('user.id'), nullable=False)
     titulo_produccion = Column(String, nullable=False)
     tipo_produccion = Column(String)
     fecha_inicio = Column(Date)
@@ -129,3 +129,81 @@ class Tarea(Base):
 - **`trabajos_tareas`**: Define la relación muchos a muchos entre `trabajos` y `tareas`, facilitando que un trabajo incluya diversas tareas y que una tarea pueda estar presente en múltiples trabajos.
 
 Esta estructura permite una representación detallada y flexible de la experiencia laboral en producciones audiovisuales, capturando la diversidad de roles y tareas que un profesional puede desempeñar en este ámbito.
+
+---
+
+Para definir los esquemas de datos (schemas) que reflejen la estructura de los modelos SQLAlchemy proporcionados, utilizaremos Pydantic. Pydantic nos permite crear modelos de datos que validan y documentan la información que nuestra API manejará. Estos esquemas serán esenciales para interactuar con FastAPI y garantizar la integridad de los datos.
+
+A continuación, se presentan los esquemas correspondientes a cada modelo:
+
+
+```python
+from typing import List, Optional
+from pydantic import BaseModel, ConfigDict
+from datetime import date
+
+class RolAtWorkBase(BaseModel):
+    nombre: str
+
+class RolAtWorkCreate(RolAtWorkBase):
+    pass
+
+class RolAtWork(RolAtWorkBase):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+class TareaAtWorkBase(BaseModel):
+    nombre: str
+
+class TareaAtWorkCreate(TareaAtWorkBase):
+    pass
+
+class TareaAtWork(TareaAtWorkBase):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+class TrabajoBase(BaseModel):
+    titulo_produccion: str
+    tipo_produccion: Optional[str] = None
+    fecha_inicio: Optional[date] = None
+    fecha_fin: Optional[date] = None
+    descripcion: Optional[str] = None
+    enlace_portafolio: Optional[str] = None
+
+class TrabajoCreate(TrabajoBase):
+    roles: List[RolAtWorkCreate]
+    tareas: List[TareaAtWorkCreate]
+
+class Trabajo(TrabajoBase):
+    id: int
+    usuario_id: int
+    roles: List[RolAtWork]
+    tareas: List[TareaAtWork]
+
+    model_config = ConfigDict(from_attributes=True)
+```
+
+
+**Detalles de los Esquemas:**
+
+- **`RolAtWorkBase` y `TareaAtWorkBase`**: Definen los atributos básicos (`nombre`) para los roles y tareas, respectivamente.
+
+- **`RolAtWorkCreate` y `TareaAtWorkCreate`**: Extienden las bases correspondientes y se utilizan al crear nuevos roles o tareas.
+
+- **`RolAtWork` y `TareaAtWork`**: Añaden el atributo `id` y configuran `from_attributes=True` (anteriormente `orm_mode=True` en Pydantic v1) para permitir la conversión desde modelos ORM de SQLAlchemy.
+
+- **`TrabajoBase`**: Contiene los atributos principales de un trabajo, incluyendo detalles de la producción y fechas.
+
+- **`TrabajoCreate`**: Extiende `TrabajoBase` e incluye listas de roles y tareas a crear junto con el trabajo.
+
+- **`Trabajo`**: Añade el atributo `id`, `usuario_id` y las listas de roles y tareas asociadas, configurando `from_attributes=True` para la compatibilidad con SQLAlchemy.
+
+**Consideraciones Importantes:**
+
+- Al definir relaciones muchos a muchos, como las existentes entre `Trabajo` y `RolAtWork` o `TareaAtWork`, es esencial manejar adecuadamente las asociaciones en los esquemas para reflejar las relaciones establecidas en los modelos de SQLAlchemy.
+
+- La configuración `from_attributes=True` en la clase `Config` de cada esquema permite que Pydantic trabaje directamente con las instancias de los modelos de SQLAlchemy, facilitando la conversión entre modelos ORM y esquemas Pydantic.
+
+Estos esquemas proporcionan una estructura clara y validada para los datos que manejará tu aplicación, asegurando coherencia y facilitando la integración con FastAPI.

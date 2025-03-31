@@ -40,3 +40,4 @@ class User(Base):
     # Relación con roles a través de la tabla UserRole
     roles = relationship("Role", secondary="user_roles", backref="users")
     trainings = relationship("Training", back_populates="user")  # Relación 1:N con Training
+    trabajos = relationship('Work', back_populates='user') # Relación 1:N con Trabajo

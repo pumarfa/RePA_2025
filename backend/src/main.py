@@ -11,6 +11,7 @@ from src.routes.user_routes import user_router
 from src.routes.admin_routes import admin_router
 from src.routes.training_routes import training_router
 from src.routes.admin_training_rutes import admin_training
+from src.routes.work_routes import work_router
 
 from src.seed import seed_data
 
@@ -44,6 +45,7 @@ def on_startup():
 # Incluir rutas a módulos
 app.include_router(user_router, prefix="/users", tags=["Users"])
 app.include_router(training_router, prefix="/training", tags=["Training"])
+app.include_router(work_router, prefix="/work", tags=["Work"])
 
 # Rutas de Administración
 app.include_router(admin_router, prefix="/admin_user", tags=["Administrator User"])
